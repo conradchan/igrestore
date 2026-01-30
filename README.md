@@ -1,5 +1,15 @@
 # igrestore
 
+## takeaway
+
+not that much lost from not being on ig actually. i know who i know, i remember who i remember, and the ones im close to i still talk to. the ones ive fallen out of touch with im ok with. would be a more curated set of people which is fine. that comes out to like 300 people, so one of those profiles with 300 following and 2xx followers.
+
+realizing how stupid this shit is man. to care about it that is. really think about whether i want to bring this back. benefits- easier to keep in touch with new people and coordinate- but its not impossible without, can still join group gcs or text phone number, kinda cool being off the grid that way. downside is getting back on ig, thinking about the sam situation, dates who care abt that shit lol. might be worth instead of having to explain that shit constantly.
+
+also if people are like "you on ig?" i can just say "whatsapp?" and if it gets cumbersome be like yea send me a dm on ig i never use it tho, literally following no one. and i dont want to follow anyone either thru that cuz i dont wanna spend time on it haha.
+
+---
+
 Tools to rebuild an Instagram following list from a deleted account. Parses a saved HTML export of your "Following" page, fetches live profile data, downloads profile pictures, and serves a local web app to review and triage each account.
 
 ## Files

@@ -41,12 +41,26 @@
         .badge-not_found { background: #f8d7da; color: #721c24; }
         .badge-error, .badge-http_error { background: #fff3cd; color: #856404; }
         .badge-unknown { background: #e2e3e5; color: #383d41; }
+        .people-section { max-width: 1200px; margin: 40px auto 0; padding-top: 24px; border-top: 2px solid #dbdbdb; }
+        .people-section h2 { font-size: 20px; margin-bottom: 12px; }
+        .people-add { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+        .people-add input { padding: 8px 12px; border: 1px solid #dbdbdb; border-radius: 8px; font-size: 14px; }
+        .people-add button { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: #0095f6; color: #fff; }
+        .people-add button:hover { background: #0081d6; }
+        .people-list { list-style: none; }
+        .people-list li { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #fff; border: 1px solid #dbdbdb; border-radius: 8px; margin-bottom: 8px; }
+        .people-list .person-name { font-weight: 600; font-size: 14px; min-width: 120px; }
+        .people-list .person-notes { flex: 1; }
+        .people-list .person-notes input { width: 100%; padding: 4px 8px; border: 1px solid #dbdbdb; border-radius: 6px; font-size: 12px; }
+        .people-list .person-notes input:focus { outline: none; border-color: #8e8e8e; }
+        .people-list .person-remove { background: none; border: none; color: #dc3545; font-size: 12px; cursor: pointer; }
+        .people-list .person-remove:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Instagram Following List</h1>
-        <p style="color:#8e8e8e;font-size:14px;margin-bottom:12px;">Recreating old account</p>
+        <p style="color:#8e8e8e;font-size:14px;margin-bottom:12px;">back on ig</p>
         <div class="tabs" id="tabs">
             <div class="tab active" data-tab="undecided">No Decision Yet<span class="tab-count"></span></div>
             <div class="tab" data-tab="all">All<span class="tab-count"></span></div>
@@ -74,6 +88,16 @@
     </div>
     <div class="grid" id="grid"></div>
 
+    <div class="people-section">
+        <h2>People to Add</h2>
+        <div class="people-add">
+            <input type="text" id="personName" placeholder="Name">
+            <input type="text" id="personNotes" placeholder="Notes (optional)">
+            <button onclick="addPerson()">Add</button>
+        </div>
+        <ul class="people-list" id="peopleList"></ul>
+    </div>
+
     <script>
         const profiles = {{ profiles | tojson }};
 
@@ -98,6 +122,7 @@
             if (status === 'active') return 'badge-active';
             if (status === 'not_found') return 'badge-not_found';
             if (status === 'error' || status === 'http_error') return 'badge-error';
+            if (status === 'manual') return 'badge-manual';
             return 'badge-unknown';
         }
 
@@ -106,7 +131,61 @@
             if (status === 'not_found') return 'Deleted';
             if (status === 'http_error') return 'Blocked';
             if (status === 'error') return 'Error';
+            if (status === 'manual') return 'Added';
             return 'Not fetched';
+        }
+
+        let people = [];
+
+        function loadPeople() {
+            fetch('/api/people').then(r => r.json()).then(data => {
+                people = data;
+                renderPeople();
+            });
+        }
+
+        function addPerson() {
+            const nameEl = document.getElementById('personName');
+            const notesEl = document.getElementById('personNotes');
+            const name = nameEl.value.trim();
+            if (!name) return;
+            fetch('/api/people', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, notes: notesEl.value.trim() }),
+            }).then(r => r.json()).then(data => {
+                people.unshift({ id: data.id, name, notes: notesEl.value.trim() });
+                nameEl.value = '';
+                notesEl.value = '';
+                renderPeople();
+            });
+        }
+
+        function removePerson(id) {
+            fetch(`/api/people/${id}`, { method: 'DELETE' }).then(() => {
+                people = people.filter(p => p.id !== id);
+                renderPeople();
+            });
+        }
+
+        function updatePersonNotes(id, notes) {
+            fetch(`/api/people/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notes }),
+            });
+        }
+
+        function renderPeople() {
+            const list = document.getElementById('peopleList');
+            list.innerHTML = people.map(p => {
+                const notesVal = (p.notes || '').replace(/"/g, '&quot;');
+                return `<li>
+                    <span class="person-name">${p.name}</span>
+                    <span class="person-notes"><input type="text" placeholder="Notes..." value="${notesVal}" onchange="updatePersonNotes(${p.id}, this.value)"></span>
+                    <button class="person-remove" onclick="removePerson(${p.id})">remove</button>
+                </li>`;
+            }).join('');
         }
 
         function saveDecision(username, decision, notes) {
@@ -223,6 +302,7 @@
         document.getElementById('statusFilter').addEventListener('change', render);
         document.getElementById('sort').addEventListener('change', render);
         render();
+        loadPeople();
     </script>
 </body>
 </html>

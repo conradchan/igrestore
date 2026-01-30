@@ -23,6 +23,16 @@ def get_db():
         "CREATE TABLE IF NOT EXISTS decisions "
         "(username TEXT PRIMARY KEY, decision TEXT NOT NULL DEFAULT 'undecided', notes TEXT DEFAULT '')"
     )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS manual_adds "
+        "(username TEXT PRIMARY KEY, display_name TEXT DEFAULT '', notes TEXT DEFAULT '', "
+        "decision TEXT NOT NULL DEFAULT 'will_follow', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS people "
+        "(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, notes TEXT DEFAULT '', "
+        "added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+    )
     conn.commit()
     return conn
 
@@ -110,6 +120,48 @@ def set_decision():
         "ON CONFLICT(username) DO UPDATE SET decision=excluded.decision, notes=excluded.notes",
         (username, decision, notes),
     )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/people", methods=["GET"])
+def get_people():
+    conn = get_db()
+    rows = conn.execute("SELECT id, name, notes FROM people ORDER BY added_at DESC").fetchall()
+    conn.close()
+    return jsonify([{"id": r[0], "name": r[1], "notes": r[2] or ""} for r in rows])
+
+
+@app.route("/api/people", methods=["POST"])
+def add_person():
+    data = request.get_json()
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "missing name"}), 400
+    notes = data.get("notes", "")
+    conn = get_db()
+    cur = conn.execute("INSERT INTO people (name, notes) VALUES (?, ?)", (name, notes))
+    conn.commit()
+    pid = cur.lastrowid
+    conn.close()
+    return jsonify({"ok": True, "id": pid})
+
+
+@app.route("/api/people/<int:pid>", methods=["PUT"])
+def update_person(pid):
+    data = request.get_json()
+    conn = get_db()
+    conn.execute("UPDATE people SET notes = ? WHERE id = ?", (data.get("notes", ""), pid))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/people/<int:pid>", methods=["DELETE"])
+def delete_person(pid):
+    conn = get_db()
+    conn.execute("DELETE FROM people WHERE id = ?", (pid,))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
