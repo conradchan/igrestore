@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IG Following List</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fafafa; color: #262626; padding: 20px; }
+        .header { max-width: 1200px; margin: 0 auto 20px; }
+        .header h1 { font-size: 24px; margin-bottom: 12px; }
+        .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid #dbdbdb; }
+        .tab { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #8e8e8e; transition: all 0.2s; }
+        .tab:hover { color: #262626; }
+        .tab.active { color: #262626; border-bottom-color: #262626; }
+        .tab .tab-count { font-weight: 400; margin-left: 4px; font-size: 12px; }
+        .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+        .controls input[type="text"] { padding: 8px 12px; border: 1px solid #dbdbdb; border-radius: 8px; font-size: 14px; width: 300px; }
+        .controls select { padding: 8px 12px; border: 1px solid #dbdbdb; border-radius: 8px; font-size: 14px; }
+        .stats { font-size: 14px; color: #8e8e8e; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; max-width: 1200px; margin: 0 auto; }
+        .card { background: #fff; border: 1px solid #dbdbdb; border-radius: 12px; padding: 16px; display: flex; gap: 12px; transition: box-shadow 0.2s; }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .card img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #efefef; align-self: flex-start; }
+        .card-info { flex: 1; min-width: 0; }
+        .card-info a { text-decoration: none; color: #262626; font-weight: 600; font-size: 14px; }
+        .card-info a:hover { text-decoration: underline; }
+        .card-name { font-size: 13px; color: #8e8e8e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-stats { font-size: 12px; color: #8e8e8e; margin-top: 4px; display: flex; gap: 10px; }
+        .card-stats span { white-space: nowrap; }
+        .card-actions { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+        .card-actions select { padding: 4px 8px; border: 1px solid #dbdbdb; border-radius: 6px; font-size: 12px; }
+        .card-actions select.will_follow { border-color: #28a745; background: #d4edda; }
+        .card-actions select.maybe_follow { border-color: #ffc107; background: #fff3cd; }
+        .card-actions select.dont_follow { border-color: #dc3545; background: #f8d7da; }
+        .card-notes { margin-top: 6px; }
+        .card-notes input { width: 100%; padding: 4px 8px; border: 1px solid #dbdbdb; border-radius: 6px; font-size: 12px; color: #262626; }
+        .card-notes input:focus { outline: none; border-color: #8e8e8e; }
+        .badge { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-not_found { background: #f8d7da; color: #721c24; }
+        .badge-error, .badge-http_error { background: #fff3cd; color: #856404; }
+        .badge-unknown { background: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Instagram Following List</h1>
+        <p style="color:#8e8e8e;font-size:14px;margin-bottom:12px;">Recreating old account</p>
+        <div class="tabs" id="tabs">
+            <div class="tab active" data-tab="undecided">No Decision Yet<span class="tab-count"></span></div>
+            <div class="tab" data-tab="all">All<span class="tab-count"></span></div>
+            <div class="tab" data-tab="will_follow">Will Follow<span class="tab-count"></span></div>
+            <div class="tab" data-tab="maybe_follow">Maybe Follow<span class="tab-count"></span></div>
+            <div class="tab" data-tab="dont_follow">Don't Follow<span class="tab-count"></span></div>
+        </div>
+        <div class="controls">
+            <input type="text" id="search" placeholder="Search username or name...">
+            <select id="statusFilter">
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="not_found">Not found</option>
+                <option value="error">Error</option>
+                <option value="unknown">Not fetched</option>
+            </select>
+            <select id="sort">
+                <option value="username">Sort: Username</option>
+                <option value="followers-desc">Sort: Followers (high-low)</option>
+                <option value="followers-asc">Sort: Followers (low-high)</option>
+                <option value="name">Sort: Display name</option>
+            </select>
+            <span class="stats" id="stats"></span>
+        </div>
+    </div>
+    <div class="grid" id="grid"></div>
+
+    <script>
+        const profiles = {{ profiles | tojson }};
+
+        function parseCount(val) {
+            if (val == null) return null;
+            let s = String(val).replace(/,/g, '');
+            if (s.match(/[kK]$/)) return parseFloat(s) * 1000;
+            if (s.match(/[mM]$/)) return parseFloat(s) * 1000000;
+            return parseInt(s, 10) || null;
+        }
+
+        function fmtCount(val) {
+            if (val == null) return '\u2014';
+            let n = typeof val === 'number' ? val : parseCount(val);
+            if (n == null) return String(val);
+            if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+            if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+            return n.toLocaleString();
+        }
+
+        function badgeClass(status) {
+            if (status === 'active') return 'badge-active';
+            if (status === 'not_found') return 'badge-not_found';
+            if (status === 'error' || status === 'http_error') return 'badge-error';
+            return 'badge-unknown';
+        }
+
+        function badgeLabel(status) {
+            if (status === 'active') return 'Active';
+            if (status === 'not_found') return 'Deleted';
+            if (status === 'http_error') return 'Blocked';
+            if (status === 'error') return 'Error';
+            return 'Not fetched';
+        }
+
+        function saveDecision(username, decision, notes) {
+            fetch('/api/decision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, decision, notes }),
+            });
+        }
+
+        let activeTab = 'undecided';
+
+        function updateTabCounts() {
+            const counts = { will_follow: 0, maybe_follow: 0, dont_follow: 0, undecided: 0, all: 0 };
+            profiles.forEach(p => { counts[p.decision] = (counts[p.decision] || 0) + 1; counts.all++; });
+            document.querySelectorAll('.tab').forEach(tab => {
+                const key = tab.dataset.tab;
+                tab.querySelector('.tab-count').textContent = ` (${counts[key] || 0})`;
+            });
+        }
+
+        function renderCard(p) {
+            const localSrc = p.has_pic ? `/pics/${p.username}.jpg` : '';
+            const imgTag = localSrc
+                ? `<img src="${localSrc}" alt="" loading="lazy" onerror="this.src='';this.style.background='#efefef'">`
+                : `<img src="" alt="" style="background:#efefef">`;
+
+            const selClass = p.decision !== 'undecided' ? p.decision : '';
+            const notesVal = (p.notes || '').replace(/"/g, '&quot;');
+
+            return `<div class="card">
+                ${imgTag}
+                <div class="card-info">
+                    <a href="${p.profile_url}" target="_blank" rel="noopener">@${p.username}</a>
+                    <span class="badge ${badgeClass(p.status)}">${badgeLabel(p.status)}</span>
+                    <div class="card-name">${p.display_name || ''}</div>
+                    <div class="card-stats">
+                        <span>${fmtCount(p.followers)} followers</span>
+                        <span>${fmtCount(p.following)} following</span>
+                        <span>${fmtCount(p.posts)} posts</span>
+                    </div>
+                    <div class="card-actions">
+                        <select class="${selClass}" onchange="handleDecision('${p.username}', this)">
+                            <option value="undecided"${p.decision === 'undecided' ? ' selected' : ''}>Undecided</option>
+                            <option value="will_follow"${p.decision === 'will_follow' ? ' selected' : ''}>Will follow</option>
+                            <option value="maybe_follow"${p.decision === 'maybe_follow' ? ' selected' : ''}>Maybe follow</option>
+                            <option value="dont_follow"${p.decision === 'dont_follow' ? ' selected' : ''}>Don't follow</option>
+                        </select>
+                    </div>
+                    <div class="card-notes">
+                        <input type="text" placeholder="Notes..." value="${notesVal}" onchange="handleNotes('${p.username}', this)">
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function handleDecision(username, el) {
+            const p = profiles.find(x => x.username === username);
+            if (!p) return;
+            p.decision = el.value;
+            el.className = el.value !== 'undecided' ? el.value : '';
+            const notes = el.closest('.card-info').querySelector('.card-notes input').value;
+            saveDecision(username, el.value, notes);
+            updateTabCounts();
+            render();
+        }
+
+        function handleNotes(username, el) {
+            const p = profiles.find(x => x.username === username);
+            if (!p) return;
+            p.notes = el.value;
+            saveDecision(username, p.decision, el.value);
+        }
+
+        function render() {
+            const search = document.getElementById('search').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const sortBy = document.getElementById('sort').value;
+
+            let filtered = profiles.filter(p => {
+                if (search && !p.username.toLowerCase().includes(search) && !(p.display_name || '').toLowerCase().includes(search)) return false;
+                if (statusFilter !== 'all') {
+                    if (statusFilter === 'error' && (p.status === 'error' || p.status === 'http_error')) { /* ok */ }
+                    else if (p.status !== statusFilter) return false;
+                }
+                if (activeTab !== 'all' && p.decision !== activeTab) return false;
+                return true;
+            });
+
+            filtered.sort((a, b) => {
+                // Always sort pics-loaded to top
+                if (a.has_pic !== b.has_pic) return a.has_pic ? -1 : 1;
+                if (sortBy === 'username') return a.username.localeCompare(b.username);
+                if (sortBy === 'name') return (a.display_name || '').localeCompare(b.display_name || '');
+                if (sortBy === 'followers-desc') return (parseCount(b.followers) ?? -1) - (parseCount(a.followers) ?? -1);
+                if (sortBy === 'followers-asc') return (parseCount(a.followers) ?? Infinity) - (parseCount(b.followers) ?? Infinity);
+                return 0;
+            });
+
+            document.getElementById('stats').textContent = `Showing ${filtered.length} of ${profiles.length}`;
+            document.getElementById('grid').innerHTML = filtered.map(renderCard).join('');
+            updateTabCounts();
+        }
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                activeTab = tab.dataset.tab;
+                render();
+            });
+        });
+        document.getElementById('search').addEventListener('input', render);
+        document.getElementById('statusFilter').addEventListener('change', render);
+        document.getElementById('sort').addEventListener('change', render);
+        render();
+    </script>
+</body>
+</html>
