@@ -33,6 +33,7 @@
         .card-actions select.will_follow { border-color: #28a745; background: #d4edda; }
         .card-actions select.maybe_follow { border-color: #ffc107; background: #fff3cd; }
         .card-actions select.dont_follow { border-color: #dc3545; background: #f8d7da; }
+        .card-actions select.already_followed { border-color: #17a2b8; background: #d1ecf1; }
         .card-notes { margin-top: 6px; }
         .card-notes input { width: 100%; padding: 4px 8px; border: 1px solid #dbdbdb; border-radius: 6px; font-size: 12px; color: #262626; }
         .card-notes input:focus { outline: none; border-color: #8e8e8e; }
@@ -67,6 +68,7 @@
             <div class="tab" data-tab="will_follow">Will Follow<span class="tab-count"></span></div>
             <div class="tab" data-tab="maybe_follow">Maybe Follow<span class="tab-count"></span></div>
             <div class="tab" data-tab="dont_follow">Don't Follow<span class="tab-count"></span></div>
+            <div class="tab" data-tab="already_followed">Already Followed<span class="tab-count"></span></div>
         </div>
         <div class="controls">
             <input type="text" id="search" placeholder="Search username or name...">
@@ -199,7 +201,7 @@
         let activeTab = 'undecided';
 
         function updateTabCounts() {
-            const counts = { will_follow: 0, maybe_follow: 0, dont_follow: 0, undecided: 0, all: 0 };
+            const counts = { will_follow: 0, maybe_follow: 0, dont_follow: 0, already_followed: 0, undecided: 0, all: 0 };
             profiles.forEach(p => { counts[p.decision] = (counts[p.decision] || 0) + 1; counts.all++; });
             document.querySelectorAll('.tab').forEach(tab => {
                 const key = tab.dataset.tab;
@@ -233,6 +235,7 @@
                             <option value="will_follow"${p.decision === 'will_follow' ? ' selected' : ''}>Will follow</option>
                             <option value="maybe_follow"${p.decision === 'maybe_follow' ? ' selected' : ''}>Maybe follow</option>
                             <option value="dont_follow"${p.decision === 'dont_follow' ? ' selected' : ''}>Don't follow</option>
+                            <option value="already_followed"${p.decision === 'already_followed' ? ' selected' : ''}>Already followed</option>
                         </select>
                     </div>
                     <div class="card-notes">

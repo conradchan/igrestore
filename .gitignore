@@ -4,3 +4,9 @@ __pycache__/
 *.egg-info/
 .env
 venv/
+
+# Unfollowers - personal data
+unfollowers/instagram-*/
+unfollowers/results.json
+unfollowers/profiles.json
+unfollowers/pics/
